@@ -225,30 +225,30 @@ retry:
 
 	pte_unmap_unlock(ptep, ptl);
 	switch (__migrate_cma_pinpage(page, vma)) {
-		case -EINVAL:
-		case -EBUSY:
-			pr_warn("%s: failed to isolate lru page\n", __func__);
-			dump_page(page, "failed to isolate lru page");
-			failed_page = page;
-			retry_cnt++;
-			goto retry;
-		case -EFAULT:
-			ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
-			break;
-		default:
-			old_page = page;
-			migration_entry_wait(mm, pmd, address);
-			ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
-			update_mmu_cache(vma, address, ptep);
-			pte = *ptep;
-			set_pte_at_notify(mm, address, ptep, pte);
-			page = vm_normal_page(vma, address, pte);
-			BUG_ON(!page);
+	case -EINVAL:
+	case -EBUSY:
+		pr_warn("%s: failed to isolate lru page\n", __func__);
+		dump_page(page, "failed to isolate lru page");
+		failed_page = page;
+		retry_cnt++;
+		goto retry;
+	case -EFAULT:
+		ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
+		break;
+	default:
+		old_page = page;
+		migration_entry_wait(mm, pmd, address);
+		ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
+		update_mmu_cache(vma, address, ptep);
+		pte = *ptep;
+		set_pte_at_notify(mm, address, ptep, pte);
+		page = vm_normal_page(vma, address, pte);
+		BUG_ON(!page);
 
-			pr_debug("cma: cma page %p[%#lx] migrated to new "
-					"page %p[%#lx]\n", old_page,
-					page_to_pfn(old_page),
-					page, page_to_pfn(page));
+		pr_debug("cma: cma page %p[%#lx] migrated to new "
+				"page %p[%#lx]\n", old_page,
+				page_to_pfn(old_page),
+				page, page_to_pfn(page));
 	}
 	if (failed_page)
 		pr_warn("cma: isolation failed page %p[%#lx] , fixed to page %p[%#lx] (retry %d)\n",
@@ -256,8 +256,12 @@ retry:
 			page, page_to_pfn(page), retry_cnt);
 skip_pinpage:
 #endif
-	if (flags & FOLL_GET)
-		get_page_foll(page);
+	if (flags & FOLL_GET) {
+		if (unlikely(!try_get_page_foll(page))) {
+			page = ERR_PTR(-ENOMEM);
+			goto out;
+		}
+	}
 	if (flags & FOLL_TOUCH) {
 		if ((flags & FOLL_WRITE) &&
 		    !pte_dirty(pte) && !PageDirty(page))
@@ -424,7 +428,10 @@ static int get_gate_page(struct mm_struct *mm, unsigned long address,
 			goto unmap;
 		*page = pte_page(*pte);
 	}
-	get_page(*page);
+	if (unlikely(!try_get_page(*page))) {
+		ret = -ENOMEM;
+		goto unmap;
+	}
 out:
 	ret = 0;
 unmap:
@@ -1010,7 +1017,8 @@ long get_user_pages_foll_cma(struct task_struct *tsk, struct mm_struct *mm,
 		int force, struct page **pages, struct vm_area_struct **vmas)
 {
 	return __get_user_pages_locked(tsk, mm, start, nr_pages,
-				       pages, vmas, NULL, false, FOLL_TOUCH | FOLL_CMA);
+				       pages, vmas, NULL, false,
+				       FOLL_TOUCH | FOLL_CMA);
 }
 EXPORT_SYMBOL(get_user_pages_foll_cma);
 
@@ -1200,6 +1208,20 @@ struct page *get_dump_page(unsigned long addr)
  */
 #ifdef CONFIG_HAVE_GENERIC_RCU_GUP
 
+/*
+ * Return the compund head page with ref appropriately incremented,
+ * or NULL if that failed.
+ */
+static inline struct page *try_get_compound_head(struct page *page, int refs)
+{
+	struct page *head = compound_head(page);
+	if (WARN_ON_ONCE(atomic_read(&head->_count) < 0))
+		return NULL;
+	if (unlikely(!page_cache_add_speculative(head, refs)))
+		return NULL;
+	return head;
+}
+
 #ifdef __HAVE_ARCH_PTE_SPECIAL
 static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 			 int write, struct page **pages, int *nr)
@@ -1229,6 +1251,9 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 
 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
 		page = pte_page(pte);
+
+		if (WARN_ON_ONCE(page_ref_count(page) < 0))
+			goto pte_unmap;
 
 		if (!page_cache_get_speculative(page))
 			goto pte_unmap;
@@ -1286,8 +1311,8 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
 		refs++;
 	} while (addr += PAGE_SIZE, addr != end);
 
-	head = compound_head(pmd_page(orig));
-	if (!page_cache_add_speculative(head, refs)) {
+	head = try_get_compound_head(pmd_page(orig), refs);
+	if (!head) {
 		*nr -= refs;
 		return 0;
 	}
@@ -1332,8 +1357,8 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
 		refs++;
 	} while (addr += PAGE_SIZE, addr != end);
 
-	head = compound_head(pud_page(orig));
-	if (!page_cache_add_speculative(head, refs)) {
+	head = try_get_compound_head(pud_page(orig), refs);
+	if (!head) {
 		*nr -= refs;
 		return 0;
 	}
@@ -1374,8 +1399,8 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
 		refs++;
 	} while (addr += PAGE_SIZE, addr != end);
 
-	head = compound_head(pgd_page(orig));
-	if (!page_cache_add_speculative(head, refs)) {
+	head = try_get_compound_head(pgd_page(orig), refs);
+	if (!head) {
 		*nr -= refs;
 		return 0;
 	}
