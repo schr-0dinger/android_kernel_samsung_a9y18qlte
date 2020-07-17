@@ -343,7 +343,6 @@ static int xhci_plat_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	int ret;
 
 	if (!xhci)
 		return 0;
@@ -353,15 +352,7 @@ static int xhci_plat_resume(struct device *dev)
 	if (hcd_to_bus(hcd)->skip_resume)
 		return 0;
 
-	ret = xhci_resume(xhci, false);
-	if (ret)
-		return ret;
-
-	pm_runtime_disable(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-
-	return 0;
+	return xhci_resume(xhci, false);
 }
 #endif
 
@@ -443,21 +434,6 @@ static int xhci_plat_runtime_resume(struct device *dev)
 	pm_runtime_mark_last_busy(dev);
 
 	return ret;
-=======
-	struct usb_hcd	*hcd = dev_get_drvdata(dev);
-	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
-	int ret;
-
-	ret = xhci_resume(xhci, 0);
-	if (ret)
-		return ret;
-
-	pm_runtime_disable(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-
-	return 0;
->>>>>>> 737c975db35b (usb/xhci-plat: Set PM runtime as active on resume)
 }
 
 static const struct dev_pm_ops xhci_plat_pm_ops = {
