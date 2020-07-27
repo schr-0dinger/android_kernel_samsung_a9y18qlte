@@ -3135,14 +3135,17 @@ static void binder_transaction(struct binder_proc *proc,
 			return_error_line = __LINE__;
 			goto err_dead_binder;
 		}
-		e->to_node = target_node->debug_id;
+			if (WARN_ON(proc == target_proc)) {
+				return_error = BR_FAILED_REPLY;
+				goto err_invalid_target_handle;
+			}
+			e->to_node = target_node->debug_id;
 
 #ifdef CONFIG_SAMSUNG_FREECESS
-		freecess_sync_binder_report(proc, target_proc, tr);
+			freecess_sync_binder_report(proc, target_proc, tr);
 #endif
-
-		if (security_binder_transaction(proc->tsk,
-						target_proc->tsk) < 0) {
+			if (security_binder_transaction(proc->tsk,
+							target_proc->tsk) < 0) {
 			return_error = BR_FAILED_REPLY;
 			return_error_param = -EPERM;
 			return_error_line = __LINE__;
@@ -3680,26 +3683,33 @@ static int binder_thread_write(struct binder_proc *proc,
 				return -EFAULT;
 
 			ptr += sizeof(uint32_t);
-			ret = -1;
-			if (increment && !target) {
-				struct binder_node *ctx_mgr_node;
-				mutex_lock(&context->context_mgr_node_lock);
-				ctx_mgr_node = context->binder_context_mgr_node;
-				if (ctx_mgr_node)
-					ret = binder_inc_ref_for_node(
-							proc, ctx_mgr_node,
-							strong, NULL, &rdata);
-				mutex_unlock(&context->context_mgr_node_lock);
-			}
-			if (ret)
+				ret = -1;
+				if (increment && !target) {
+					struct binder_node *ctx_mgr_node;
+					mutex_lock(&context->context_mgr_node_lock);
+					ctx_mgr_node = context->binder_context_mgr_node;
+					if (ctx_mgr_node) {
+						if (ctx_mgr_node->proc == proc) {
+							mutex_unlock(&context->context_mgr_node_lock);
+							binder_user_error("%d:%d context manager tried to acquire desc 0\n",
+									  proc->pid, thread->pid);
+							return -EINVAL;
+						}
+						ret = binder_inc_ref_for_node(
+								proc, ctx_mgr_node,
+								strong, NULL, &rdata);
+					}
+					mutex_unlock(&context->context_mgr_node_lock);
+				}
+				if (ret)
 				ret = binder_update_ref_for_handle(
 						proc, target, increment, strong,
 						&rdata);
-			if (!ret && rdata.desc != target) {
-				binder_user_error("%d:%d tried to acquire reference to desc %d, got %d instead\n",
-					proc->pid, thread->pid,
-					target, rdata.desc);
-			}
+				if (!ret && rdata.desc != target) {
+					binder_user_error("%d:%d tried to acquire reference to desc %d, got %d instead\n",
+						proc->pid, thread->pid,
+						target, rdata.desc);
+				}
 			switch (cmd) {
 			case BC_INCREFS:
 				debug_string = "IncRefs";
