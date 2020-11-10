@@ -17,8 +17,8 @@
 #include <linux/kernel.h>
 #include <linux/export.h>
 #ifdef CONFIG_MPTCP
-	#include <net/mptcp.h>
-	#include <net/mptcp_v4.h>
+#include <net/mptcp.h>
+#include <net/mptcp_v4.h>
 #endif
 #include <net/tcp.h>
 #include <net/route.h>
@@ -231,7 +231,6 @@ struct sock *tcp_get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct sock *child;
 	bool own_req;
-
 #ifdef CONFIG_MPTCP
 	int ret;
 #endif
@@ -336,7 +335,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 	__u32 cookie = ntohl(th->ack_seq) - 1;
 	struct sock *ret = sk;
 	struct request_sock *req;
-	int mss;
+	int full_space, mss;
 	struct rtable *rt;
 	__u8 rcv_wscale;
 	struct flowi4 fl4;
@@ -373,7 +372,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 		req = inet_reqsk_alloc(&mptcp_request_sock_ops, sk, false); /* for safety */
 	else
 #endif
-		req = inet_reqsk_alloc(&tcp_request_sock_ops, sk, false); /* for safety */
+	req = inet_reqsk_alloc(&tcp_request_sock_ops, sk, false); /* for safety */
 	if (!req)
 		goto out;
 
@@ -439,17 +438,24 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 
 	/* Try to redo what tcp_v4_send_synack did. */
 	req->rsk_window_clamp = tp->window_clamp ? :dst_metric(&rt->dst, RTAX_WINDOW);
+	/* limit the window selection if the user enforce a smaller rx buffer */
+	full_space = tcp_full_space(sk);
+	if (sk->sk_userlocks & SOCK_RCVBUF_LOCK &&
+	    (req->rsk_window_clamp > full_space || req->rsk_window_clamp == 0))
+		req->rsk_window_clamp = full_space;
+
 #ifdef CONFIG_MPTCP
-	tp->ops->select_initial_window(tcp_full_space(sk), req->mss,
+	tp->ops->select_initial_window(full_space, req->mss,
 				       &(req->rsk_rcv_wnd), &(req->rsk_window_clamp),
-			       	   ireq->wscale_ok, &rcv_wscale,
+				       ireq->wscale_ok, &rcv_wscale,
 				       dst_metric(&rt->dst, RTAX_INITRWND), sk);
 #else
-	tcp_select_initial_window(tcp_full_space(sk), req->mss,
+	tcp_select_initial_window(full_space, req->mss,
 				  &req->rsk_rcv_wnd, &req->rsk_window_clamp,
 				  ireq->wscale_ok, &rcv_wscale,
 				  dst_metric(&rt->dst, RTAX_INITRWND));
 #endif
+
 	ireq->rcv_wscale  = rcv_wscale;
 	ireq->ecn_ok = cookie_ecn_ok(&tcp_opt, sock_net(sk), &rt->dst);
 

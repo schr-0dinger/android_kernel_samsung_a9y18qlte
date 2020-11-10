@@ -118,8 +118,8 @@ u32 __cookie_v6_init_sequence(const struct ipv6hdr *iph,
 }
 EXPORT_SYMBOL_GPL(__cookie_v6_init_sequence);
 
-#ifdef CONFIG_MPTCP	
-	__u32 cookie_v6_init_sequence(struct request_sock *req, const struct sock *sk,
+#ifdef CONFIG_MPTCP
+__u32 cookie_v6_init_sequence(struct request_sock *req, const struct sock *sk,
 			      const struct sk_buff *skb, __u16 *mssp)
 #else
 __u32 cookie_v6_init_sequence(const struct sk_buff *skb, __u16 *mssp)
@@ -156,7 +156,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	__u32 cookie = ntohl(th->ack_seq) - 1;
 	struct sock *ret = sk;
 	struct request_sock *req;
-	int mss;
+	int full_space, mss;
 	struct dst_entry *dst;
 	__u8 rcv_wscale;
 
@@ -178,11 +178,11 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	memset(&tcp_opt, 0, sizeof(tcp_opt));
 #ifdef CONFIG_MPTCP
 	mptcp_init_mp_opt(&mopt);
-	tcp_parse_options(skb, &tcp_opt, &mopt, 0, NULL, NULL);			
+	tcp_parse_options(skb, &tcp_opt, &mopt, 0, NULL, NULL);
 #else
 	tcp_parse_options(skb, &tcp_opt, 0, NULL);
 #endif
-		
+
 	if (!cookie_timestamp_decode(&tcp_opt))
 		goto out;
 
@@ -192,7 +192,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 		req = inet_reqsk_alloc(&mptcp6_request_sock_ops, sk, false);
 	else
 #endif
-		req = inet_reqsk_alloc(&tcp6_request_sock_ops, sk, false);
+	req = inet_reqsk_alloc(&tcp6_request_sock_ops, sk, false);
 	if (!req)
 		goto out;
 
@@ -272,13 +272,19 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	}
 
 	req->rsk_window_clamp = tp->window_clamp ? :dst_metric(dst, RTAX_WINDOW);
+	/* limit the window selection if the user enforce a smaller rx buffer */
+	full_space = tcp_full_space(sk);
+	if (sk->sk_userlocks & SOCK_RCVBUF_LOCK &&
+	    (req->rsk_window_clamp > full_space || req->rsk_window_clamp == 0))
+		req->rsk_window_clamp = full_space;
+
 #ifdef CONFIG_MPTCP
-	tp->ops->select_initial_window(tcp_full_space(sk), req->mss,
+	tp->ops->select_initial_window(full_space, req->mss,
 				       &req->rcv_wnd, &req->window_clamp,
 				       ireq->wscale_ok, &rcv_wscale,
 				       dst_metric(dst, RTAX_INITRWND), sk);
 #else
-	tcp_select_initial_window(tcp_full_space(sk), req->mss,
+	tcp_select_initial_window(full_space, req->mss,
 				  &req->rsk_rcv_wnd, &req->rsk_window_clamp,
 				  ireq->wscale_ok, &rcv_wscale,
 				  dst_metric(dst, RTAX_INITRWND));
