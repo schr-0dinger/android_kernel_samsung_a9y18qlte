@@ -282,8 +282,6 @@ bool hci_setup_sync(struct hci_conn *conn, __u16 handle)
 	cp.tx_bandwidth   = cpu_to_le32(0x00001f40);
 	cp.rx_bandwidth   = cpu_to_le32(0x00001f40);
 	cp.voice_setting  = cpu_to_le16(conn->setting);
-	cp.in_transport_unit_size = 16;
-	cp.out_transport_unit_size = 16;
 
 	switch (conn->setting & SCO_AIRMODE_MASK) {
 	case SCO_AIRMODE_TRANSP:

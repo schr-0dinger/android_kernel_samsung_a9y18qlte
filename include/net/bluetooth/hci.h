@@ -645,8 +645,6 @@ struct hci_cp_setup_sync_conn {
 	__le32   rx_bandwidth;
 	__le16   max_latency;
 	__le16   voice_setting;
-	__u8     in_transport_unit_size;
-	__u8     out_transport_unit_size;
 	__u8     retrans_effort;
 	__le16   pkt_type;
 } __packed;
@@ -658,8 +656,6 @@ struct hci_cp_accept_sync_conn_req {
 	__le32   rx_bandwidth;
 	__le16   max_latency;
 	__le16   content_format;
-	__u8     in_transport_unit_size;
-	__u8     out_transport_unit_size;
 	__u8     retrans_effort;
 	__le16   pkt_type;
 } __packed;
