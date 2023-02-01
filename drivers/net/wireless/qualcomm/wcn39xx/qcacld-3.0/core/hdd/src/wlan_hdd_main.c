@@ -14249,7 +14249,7 @@ static ssize_t show_wificableinfo(struct kobject *kobj,
 {
 	struct device_node *np;
 	int wifi_cable = 0;
-	char antbuffer[3] = {0};
+	char antbuffer[1] = {0};
 
 	np = of_find_compatible_node(NULL, NULL, "samsung,rome_cable");
 
