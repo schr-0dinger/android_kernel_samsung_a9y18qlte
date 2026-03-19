@@ -638,6 +638,13 @@ static int pil_init_image_trusted(struct pil_desc *pil,
 		scm_ret = desc.ret[0];
 	}
 
+	if (ret || scm_ret)
+		pr_err("pil-tz: init_image failed name=%s fw=%s pas_id=%u metadata_size=%zu metadata_phys=%pa region_addr=%pa region_size=%zu armv8=%d ret=%d scm_ret=%u\n",
+			pil->name ? pil->name : "unknown",
+			pil->fw_name ? pil->fw_name : "unknown",
+			d->pas_id, size, &mdata_phys, &addr, sz,
+			is_scm_armv8(), ret, scm_ret);
+
 	dma_free_attrs(&dev, size, mdata_buf, mdata_phys, &attrs);
 	scm_pas_disable_bw();
 	if (ret)
