@@ -125,3 +125,4 @@ Android.bp
 # Output
 out/
 RELEASE/
+LAVENDER_BASE_COMPARISON.md
