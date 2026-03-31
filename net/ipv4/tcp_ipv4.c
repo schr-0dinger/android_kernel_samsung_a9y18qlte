@@ -584,7 +584,10 @@ EXPORT_SYMBOL(tcp_v4_send_check);
  *	Exception: precedence violation. We do not implement it in any case.
  */
 
-static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
+#ifndef CONFIG_MPTCP
+static
+#endif
+void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 {
 	const struct tcphdr *th = tcp_hdr(skb);
 	struct {
@@ -804,8 +807,11 @@ static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 	inet_twsk_put(tw);
 }
 
-static void tcp_v4_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
-				  struct request_sock *req)
+#ifndef CONFIG_MPTCP
+static
+#endif
+void tcp_v4_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
+			   struct request_sock *req)
 {
 	/* sk->sk_state == TCP_LISTEN -> for regular TCP_SYN_RECV
 	 * sk->sk_state == TCP_SYN_RECV -> for Fast Open.
@@ -867,7 +873,10 @@ static int tcp_v4_send_synack(const struct sock *sk, struct dst_entry *dst,
 /*
  *	IPv4 request_sock destructor.
  */
-static void tcp_v4_reqsk_destructor(struct request_sock *req)
+#ifndef CONFIG_MPTCP
+static
+#endif
+void tcp_v4_reqsk_destructor(struct request_sock *req)
 {
 	kfree(rcu_dereference_protected(inet_rsk(req)->ireq_opt, 1));
 }
@@ -1198,9 +1207,15 @@ static bool tcp_v4_inbound_md5_hash(const struct sock *sk,
 	return false;
 }
 
+#ifdef CONFIG_MPTCP
+static int tcp_v4_init_req(struct request_sock *req,
+			   const struct sock *sk_listener,
+			   struct sk_buff *skb, bool want_cookie)
+#else
 static void tcp_v4_init_req(struct request_sock *req,
 			    const struct sock *sk_listener,
 			    struct sk_buff *skb)
+#endif
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
 
@@ -1208,6 +1223,9 @@ static void tcp_v4_init_req(struct request_sock *req,
 	sk_daddr_set(req_to_sk(req), ip_hdr(skb)->saddr);
 	ireq->no_srccheck = inet_sk(sk_listener)->transparent;
 	RCU_INIT_POINTER(ireq->ireq_opt, tcp_v4_save_options(skb));
+#ifdef CONFIG_MPTCP
+	return 0;
+#endif
 }
 
 static struct dst_entry *tcp_v4_route_req(const struct sock *sk,
@@ -1237,7 +1255,10 @@ struct request_sock_ops tcp_request_sock_ops __read_mostly = {
 	.syn_ack_timeout =	tcp_syn_ack_timeout,
 };
 
-static const struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
+#ifndef CONFIG_MPTCP
+static
+#endif
+const struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
 	.mss_clamp	=	TCP_MSS_DEFAULT,
 #ifdef CONFIG_TCP_MD5SIG
 	.req_md5_lookup	=	tcp_v4_md5_lookup,
@@ -1375,7 +1396,10 @@ put_and_exit:
 }
 EXPORT_SYMBOL(tcp_v4_syn_recv_sock);
 
-static struct sock *tcp_v4_cookie_check(struct sock *sk, struct sk_buff *skb)
+#ifndef CONFIG_MPTCP
+static
+#endif
+struct sock *tcp_v4_cookie_check(struct sock *sk, struct sk_buff *skb)
 {
 #ifdef CONFIG_SYN_COOKIES
 	const struct tcphdr *th = tcp_hdr(skb);

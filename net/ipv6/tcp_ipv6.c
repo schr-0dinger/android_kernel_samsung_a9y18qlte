@@ -2205,6 +2205,29 @@ void tcp6_proc_exit(struct net *net)
 }
 #endif
 
+void tcp_copy_sk(struct sock *nsk, const struct sock *osk)
+{
+	struct inet_sock *newinet = inet_sk(nsk);
+	struct tcp_sock *newtp = tcp_sk(nsk);
+
+	memcpy(nsk, osk, offsetof(struct sock, sk_dontcopy_begin));
+
+	memcpy(&nsk->sk_dontcopy_end, &osk->sk_dontcopy_end,
+	       osk->sk_prot->obj_size -
+	       offsetof(struct sock, sk_dontcopy_end));
+
+	/* TCPv6 sockets keep ipv6_pinfo embedded at the end of tcp6_sock. */
+	newinet->pinet6 = &((struct tcp6_sock *)nsk)->inet6;
+
+	/*
+	 * A cloned socket must not inherit token-table linkage from the
+	 * original socket.
+	 */
+	newtp->inside_tk_table = 0;
+	newtp->tk_table.next = (struct hlist_nulls_node *)NULLS_MARKER(0);
+	newtp->tk_table.pprev = NULL;
+}
+
 static void tcp_v6_clear_sk(struct sock *sk, int size)
 {
 	struct inet_sock *inet = inet_sk(sk);
