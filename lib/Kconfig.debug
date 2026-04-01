@@ -2028,9 +2028,16 @@ config BUG_ON_DATA_CORRUPTION
 
 	  If unsure, say N.
 
+config CC_WERROR
+	bool "Treat all compile warnings as errors"
+	default n
+	help
+	  Select this option to treat compiler warnings as errors.
+
+	  If unsure, say N.
+
 source "samples/Kconfig"
 
 source "lib/Kconfig.kgdb"
 
 source "lib/Kconfig.ubsan"
-

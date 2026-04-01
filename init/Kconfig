@@ -107,6 +107,22 @@ config LOCALVERSION_AUTO
 
 	  which is done within the script "scripts/setlocalversion".)
 
+menuconfig UNAME_OVERRIDE
+	bool "Override uname output for specific processes"
+	help
+	  This modifies the returned uname release string for a matching
+	  process cmdline.
+
+if UNAME_OVERRIDE
+
+config UNAME_OVERRIDE_TARGET
+	string "Target process' cmdline for uname override"
+
+config UNAME_OVERRIDE_STRING
+	string "New uname release string for uname override"
+
+endif
+
 config HAVE_KERNEL_GZIP
 	bool
 
