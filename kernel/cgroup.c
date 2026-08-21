@@ -32,6 +32,7 @@
 #include <linux/cred.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
+#include <linux/file.h>
 #include <linux/init_task.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -332,15 +333,6 @@ static void cgroup_idr_remove(struct idr *idr, int id)
 	spin_unlock_bh(&cgroup_idr_lock);
 }
 
-static struct cgroup *cgroup_parent(struct cgroup *cgrp)
-{
-	struct cgroup_subsys_state *parent_css = cgrp->self.parent;
-
-	if (parent_css)
-		return container_of(parent_css, struct cgroup, self);
-	return NULL;
-}
-
 /**
  * cgroup_css - obtain a cgroup's css for the specified subsystem
  * @cgrp: the cgroup of interest
@@ -444,10 +436,11 @@ static bool cgroup_tryget(struct cgroup *cgrp)
 	return css_tryget(&cgrp->self);
 }
 
-static void cgroup_put(struct cgroup *cgrp)
+void cgroup_put(struct cgroup *cgrp)
 {
 	css_put(&cgrp->self);
 }
+EXPORT_SYMBOL_GPL(cgroup_put);
 
 struct cgroup_subsys_state *of_css(struct kernfs_open_file *of)
 {
@@ -1926,6 +1919,11 @@ static int cgroup_setup_root(struct cgroup_root *root, unsigned long ss_mask)
 			      GFP_KERNEL);
 	if (ret)
 		goto out;
+
+	/* The root cgroup's bpf lists must be live before any child inherits. */
+	ret = cgroup_bpf_inherit(root_cgrp);
+	if (ret)
+		goto cancel_ref;
 
 	/*
 	 * We're accessing css_set_count without locking css_set_lock here,
@@ -4732,6 +4730,7 @@ static void css_free_work_fn(struct work_struct *work)
 		atomic_dec(&cgrp->root->nr_cgrps);
 		cgroup_pidlist_destroy_all(cgrp);
 		cancel_work_sync(&cgrp->release_agent_work);
+		cgroup_bpf_put(cgrp);
 
 		if (cgroup_parent(cgrp)) {
 			/*
@@ -4989,6 +4988,10 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 
 	cgrp->self.parent = &parent->self;
 	cgrp->root = root;
+
+	ret = cgroup_bpf_inherit(cgrp);
+	if (ret)
+		goto out_free_id;
 
 	if (notify_on_release(parent))
 		set_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
@@ -5858,7 +5861,8 @@ struct cgroup_subsys_state *css_tryget_online_from_dir(struct dentry *dentry,
 	struct cgroup *cgrp;
 
 	/* is @dentry a cgroup dir? */
-	if (dentry->d_sb->s_type != &cgroup_fs_type || !kn ||
+	if (!dentry->d_sb || (dentry->d_sb->s_type != &cgroup_fs_type &&
+			      dentry->d_sb->s_type != &cgroup2_fs_type) || !kn ||
 	    kernfs_type(kn) != KERNFS_DIR)
 		return ERR_PTR(-EBADF);
 
@@ -5879,6 +5883,95 @@ struct cgroup_subsys_state *css_tryget_online_from_dir(struct dentry *dentry,
 	rcu_read_unlock();
 	return css;
 }
+
+#ifdef CONFIG_CGROUP_BPF
+/* Wrappers for __cgroup_bpf_*() protected by cgroup_mutex. */
+int cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
+		      enum bpf_attach_type type, u32 flags)
+{
+	int ret;
+
+	mutex_lock(&cgroup_mutex);
+	ret = __cgroup_bpf_attach(cgrp, prog, type, flags);
+	mutex_unlock(&cgroup_mutex);
+	return ret;
+}
+
+int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
+		      enum bpf_attach_type type, u32 flags)
+{
+	int ret;
+
+	mutex_lock(&cgroup_mutex);
+	ret = __cgroup_bpf_detach(cgrp, prog, type, flags);
+	mutex_unlock(&cgroup_mutex);
+	return ret;
+}
+#endif /* CONFIG_CGROUP_BPF */
+
+void cgroup_sk_alloc(struct sock_cgroup_data *skcd)
+{
+	/* Socket clone path */
+	if (skcd->cgroup) {
+		cgroup_get(skcd->cgroup);
+		return;
+	}
+
+	rcu_read_lock();
+	while (true) {
+		struct css_set *cset;
+
+		cset = task_css_set(current);
+		if (likely(cgroup_tryget(cset->dfl_cgrp))) {
+			skcd->cgroup = cset->dfl_cgrp;
+			break;
+		}
+		cpu_relax();
+	}
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(cgroup_sk_alloc);
+
+void cgroup_sk_free(struct sock_cgroup_data *skcd)
+{
+	if (skcd->cgroup)
+		cgroup_put(skcd->cgroup);
+}
+EXPORT_SYMBOL_GPL(cgroup_sk_free);
+
+/**
+ * cgroup_get_from_fd - get a cgroup pointer from a fd
+ * @fd: fd obtained by open(cgroup2_dir)
+ *
+ * Find the cgroup from a fd which should be obtained
+ * by opening a cgroup directory.  Returns a pointer to the
+ * cgroup on success. ERR_PTR is returned if the cgroup
+ * cannot be found.
+ */
+struct cgroup *cgroup_get_from_fd(int fd)
+{
+	struct cgroup_subsys_state *css;
+	struct cgroup *cgrp;
+	struct file *f;
+
+	f = fget_raw(fd);
+	if (!f)
+		return ERR_PTR(-EBADF);
+
+	css = css_tryget_online_from_dir(f->f_path.dentry, NULL);
+	fput(f);
+	if (IS_ERR(css))
+		return ERR_CAST(css);
+
+	cgrp = css->cgroup;
+	if (!cgroup_on_dfl(cgrp)) {
+		cgroup_put(cgrp);
+		return ERR_PTR(-EBADF);
+	}
+
+	return cgrp;
+}
+EXPORT_SYMBOL_GPL(cgroup_get_from_fd);
 
 /**
  * css_from_id - lookup css by id

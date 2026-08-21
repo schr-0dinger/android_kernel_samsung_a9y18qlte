@@ -956,11 +956,19 @@ struct tcp_skb_cb {
 	union {
 #endif	
 	union {
-		struct inet_skb_parm	h4;
+		union {
+			struct inet_skb_parm	h4;
 #if IS_ENABLED(CONFIG_IPV6)
-		struct inet6_skb_parm	h6;
+			struct inet6_skb_parm	h6;
 #endif
-	} header;	/* For incoming frames		*/
+		} header;	/* For incoming frames		*/
+		struct {
+			__u32 key;
+			__u32 flags;
+			struct bpf_map *map;
+			void *data_end;
+		} bpf;
+	};
 #ifdef CONFIG_MPTCP
 		union {			/* For MPTCP outgoing frames */
 			__u32 path_mask; /* paths that tried to send this skb */

@@ -15,6 +15,7 @@
 #include <linux/rcupdate.h>
 #include <linux/percpu-refcount.h>
 #include <linux/percpu-rwsem.h>
+#include <linux/bpf-cgroup.h>
 #include <linux/workqueue.h>
 
 #ifdef CONFIG_CGROUPS
@@ -293,7 +294,25 @@ struct cgroup {
 
 	/* used to schedule release agent */
 	struct work_struct release_agent_work;
+
+	/* used to store eBPF programs */
+	struct cgroup_bpf bpf;
 };
+
+/*
+ * Only the cgroup pointer is carried here.  Mainline packs prioidx and
+ * classid into the same word, but net_cls and net_prio keep their own
+ * fields in this tree, so there is nothing to unify.
+ */
+struct sock_cgroup_data {
+	struct cgroup	*cgroup;
+};
+
+static inline struct cgroup *
+sock_cgroup_ptr(const struct sock_cgroup_data *skcd)
+{
+	return skcd->cgroup;
+}
 
 /*
  * A cgroup_root represents the root of a cgroup hierarchy, and may be

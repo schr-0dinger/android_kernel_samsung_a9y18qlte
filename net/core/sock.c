@@ -116,6 +116,7 @@
 #include <linux/user_namespace.h>
 #include <linux/static_key.h>
 #include <linux/memcontrol.h>
+#include <linux/cgroup.h>
 #include <linux/prefetch.h>
 
 #include <asm/uaccess.h>
@@ -1537,6 +1538,7 @@ static void sk_prot_free(struct proto *prot, struct sock *sk)
 	slab = prot->slab;
 
 	security_sk_free(sk);
+	cgroup_sk_free(&sk->sk_cgrp_data);
 	if (slab != NULL)
 		kmem_cache_free(slab, sk);
 	else
@@ -1582,6 +1584,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 	sk = sk_prot_alloc(prot, priority | __GFP_ZERO, family);
 	if (sk) {
 		sk->sk_family = family;
+		cgroup_sk_alloc(&sk->sk_cgrp_data);
 		#ifdef CONFIG_KNOX_NCM
 		/* assign values to members of sock structure when npa flag is present */
 		sk->knox_uid = current->cred->uid.val;
@@ -1738,6 +1741,11 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		sock_copy(newsk, sk);
 
 		newsk->sk_prot_creator = sk->sk_prot;
+
+		/* sock_copy() duplicated the parent's cgroup pointer without
+		 * taking a reference; take one for the clone.
+		 */
+		cgroup_sk_alloc(&newsk->sk_cgrp_data);
 
 		/* SANITY */
 		if (likely(newsk->sk_net_refcnt))

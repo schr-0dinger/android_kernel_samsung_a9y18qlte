@@ -110,6 +110,8 @@ static inline void hlist_nulls_add_head_rcu(struct hlist_nulls_node *n,
  * [1] Documentation/atomic_ops.txt around line 114
  * [2] Documentation/RCU/rculist_nulls.txt around line 146
  */
+#define hlist_nulls_for_each_entry_safe(tpos, pos, head, member)			for (({barrier();}),								     pos = rcu_dereference_raw(hlist_nulls_first_rcu(head));				(!is_a_nulls(pos)) &&								({ tpos = hlist_nulls_entry(pos, typeof(*tpos), member);			   pos = rcu_dereference_raw(hlist_nulls_next_rcu(pos)); 1; }); )
+
 #define hlist_nulls_for_each_entry_rcu(tpos, pos, head, member)			\
 	for (({barrier();}),							\
 	     pos = rcu_dereference_raw(hlist_nulls_first_rcu(head));		\

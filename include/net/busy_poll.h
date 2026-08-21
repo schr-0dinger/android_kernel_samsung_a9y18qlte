@@ -24,6 +24,9 @@
 #ifndef _LINUX_NET_BUSY_POLL_H
 #define _LINUX_NET_BUSY_POLL_H
 
+/* 0 and 1 are reserved, so the first valid napi_id is 3. */
+#define MIN_NAPI_ID 3
+
 #include <linux/netdevice.h>
 #include <net/ip.h>
 

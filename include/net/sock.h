@@ -61,6 +61,7 @@
 
 #include <linux/filter.h>
 #include <linux/rculist_nulls.h>
+#include <linux/cgroup-defs.h>
 #include <linux/poll.h>
 
 #include <linux/atomic.h>
@@ -132,6 +133,7 @@ typedef struct {
 struct sock;
 struct proto;
 struct net;
+struct sock_reuseport;
 
 typedef __u32 __bitwise __portpair;
 typedef __u64 __bitwise __addrpair;
@@ -405,6 +407,21 @@ struct sock {
 	int			sk_sndbuf;
 	struct sk_buff_head	sk_write_queue;
 	kmemcheck_bitfield_begin(flags);
+	/* public: */
+	unsigned int		__sk_flags_offset[0];
+#ifdef __BIG_ENDIAN_BITFIELD
+#define SK_FL_PROTO_SHIFT  16
+#define SK_FL_PROTO_MASK   0x00ff0000
+
+#define SK_FL_TYPE_SHIFT   0
+#define SK_FL_TYPE_MASK    0x0000ffff
+#else
+#define SK_FL_PROTO_SHIFT  8
+#define SK_FL_PROTO_MASK   0x0000ff00
+
+#define SK_FL_TYPE_SHIFT   16
+#define SK_FL_TYPE_MASK    0xffff0000
+#endif
 	unsigned int		sk_shutdown  : 2,
 				sk_no_check_tx : 1,
 				sk_no_check_rx : 1,
@@ -482,6 +499,8 @@ struct sock {
 	int			(*sk_backlog_rcv)(struct sock *sk,
 						  struct sk_buff *skb);
 	void                    (*sk_destruct)(struct sock *sk);
+	struct sock_reuseport __rcu	*sk_reuseport_cb;
+	struct sock_cgroup_data	sk_cgrp_data;
 	struct rcu_head		sk_rcu;
 };
 

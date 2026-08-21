@@ -1646,5 +1646,40 @@ static inline void free_secdata(void *secdata)
 { }
 #endif /* CONFIG_SECURITY */
 
+/*
+ * The BPF LSM hooks are not backported: no LSM in this tree implements them,
+ * and bpf() is reachable only from init.  Keep the call sites in kernel/bpf
+ * unchanged by resolving them to permissive stubs.
+ */
+struct bpf_map;
+struct bpf_prog;
+struct bpf_prog_aux;
+union bpf_attr;
+
+static inline int security_bpf(int cmd, union bpf_attr *attr, unsigned int size)
+{
+	return 0;
+}
+static inline int security_bpf_map(struct bpf_map *map, fmode_t fmode)
+{
+	return 0;
+}
+static inline int security_bpf_prog(struct bpf_prog *prog)
+{
+	return 0;
+}
+static inline int security_bpf_map_alloc(struct bpf_map *map)
+{
+	return 0;
+}
+static inline void security_bpf_map_free(struct bpf_map *map)
+{ }
+static inline int security_bpf_prog_alloc(struct bpf_prog_aux *aux)
+{
+	return 0;
+}
+static inline void security_bpf_prog_free(struct bpf_prog_aux *aux)
+{ }
+
 #endif /* ! __LINUX_SECURITY_H */
 
