@@ -30,6 +30,10 @@
 #define ISP_SHARE_BUF_MASK 0x3
 #define ISP_NUM_BUF_MASK 2
 #define BUF_MGR_NUM_BUF_Q 28
+/* bufq->bufs is allocated per request, so this bound is independent
+ * of VB2_MAX_FRAME, which is pinned to the UAPI VIDEO_MAX_FRAME.
+ */
+#define MSM_ISP_MAX_BUFQ_BUFS 128
 #define MAX_IOMMU_CTX 2
 
 #define MSM_ISP_INVALID_BUF_INDEX 0xFFFFFFFF
