@@ -1442,11 +1442,6 @@ static u32 get_frame_size_nv12(int plane, u32 height, u32 width)
 	return VENUS_BUFFER_SIZE(COLOR_FMT_NV12, width, height);
 }
 
-static u32 get_frame_size_nv12_ubwc(int plane, u32 height, u32 width)
-{
-	return VENUS_BUFFER_SIZE(COLOR_FMT_NV12_UBWC, width, height);
-}
-
 static u32 get_frame_size_rgba(int plane, u32 height, u32 width)
 {
 	return VENUS_BUFFER_SIZE(COLOR_FMT_RGBA8888, width, height);
@@ -1474,13 +1469,6 @@ static struct msm_vidc_format venc_formats[] = {
 		.description = "Y/CbCr 4:2:0",
 		.fourcc = V4L2_PIX_FMT_NV12,
 		.get_frame_size = get_frame_size_nv12,
-		.type = OUTPUT_PORT,
-	},
-	{
-		.name = "UBWC YCbCr Semiplanar 4:2:0",
-		.description = "UBWC Y/CbCr 4:2:0",
-		.fourcc = V4L2_PIX_FMT_NV12_UBWC,
-		.get_frame_size = get_frame_size_nv12_ubwc,
 		.type = OUTPUT_PORT,
 	},
 	{
