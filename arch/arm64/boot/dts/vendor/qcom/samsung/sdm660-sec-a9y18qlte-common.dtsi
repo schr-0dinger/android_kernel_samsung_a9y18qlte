@@ -7,3 +7,52 @@
 	qcom,model = "sdm660-snd-card-mtp";
 	status = "okay";
 };
+
+/* Samsung changes to the qcom sdm660 files, from the 4.4 kernel */
+
+&soc {
+	qcom,msm-ssc-sensors {
+		status = "ok";
+		qcom,firmware-name = "adsp";
+	};
+};
+
+&{/soc/qcom,icnss@18800000} {
+	qcom,vdd-cx-mx-config = <800000 800000>;
+};
+
+&qcom_seecom {
+	qcom,commonlib64-loaded-by-uefi;
+};
+
+&ufs1 {
+	/delete-property/ spm-level;
+};
+
+/* SD card: no pull on CMD/CD, 8 mA on DATA */
+&sdc1_cmd_on {
+	config {
+		/delete-property/ bias-pull-up;
+		bias-disable;
+	};
+};
+
+&sdc1_cmd_off {
+	config {
+		/delete-property/ bias-pull-up;
+		bias-disable;
+	};
+};
+
+&sdc2_data_on {
+	config {
+		drive-strength = <8>;
+	};
+};
+
+&sdc2_cd_on {
+	config {
+		/delete-property/ bias-pull-up;
+		bias-disable;
+	};
+};
