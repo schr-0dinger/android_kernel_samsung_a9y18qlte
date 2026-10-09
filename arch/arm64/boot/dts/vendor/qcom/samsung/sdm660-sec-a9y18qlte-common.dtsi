@@ -194,3 +194,15 @@
 &bcl_sensor {
 	status = "disabled";
 };
+
+/*
+ * The ROM ramdisk fstab mounts system and vendor (first_stage_mount).
+ * Android init prefers a DT fstab, and the qcom one points vendor at
+ * eMMC with A/B and AVB flags, so remove it.
+ */
+&firmware {
+	android {
+		/delete-node/ vbmeta;
+		/delete-node/ fstab;
+	};
+};
