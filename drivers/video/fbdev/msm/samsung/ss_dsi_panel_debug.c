@@ -579,6 +579,8 @@ void mdss_samsung_fence_dump(char *intf, struct sync_fence *fence)
 #endif
 
 
+/* The image dump needs 4.4 ION internals and sec_debug, which are not ported */
+#ifdef CONFIG_SEC_DEBUG
 /************************************************************
 *
 *		IMAGE DUMP FUNCTION
@@ -910,6 +912,7 @@ void samsung_mdss_image_dump(void)
 	} else
 		samsung_image_dump_worker(vdd, NULL);
 }
+#endif /* CONFIG_SEC_DEBUG */
 
 
 static ssize_t mdss_samsung_dump_regs_debug(struct file *file,

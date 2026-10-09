@@ -2108,8 +2108,8 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 	case FB_BLANK_UNBLANK:
 		pr_debug("unblank called. cur pwr state=%d\n", cur_power_state);
 #if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
-		if (wake_lock_active(&vdd->doze_wakelock))
-			wake_unlock(&vdd->doze_wakelock);
+		if (vdd->doze_wakelock->active)
+			__pm_relax(vdd->doze_wakelock);
 #endif
 		ret = mdss_fb_blank_unblank(mfd);
 		break;
@@ -2122,8 +2122,8 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 		}
 
 #if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
-		if (wake_lock_active(&vdd->doze_wakelock))
-			wake_unlock(&vdd->doze_wakelock);
+		if (vdd->doze_wakelock->active)
+			__pm_relax(vdd->doze_wakelock);
 #endif
 		ret = mdss_fb_blank_blank(mfd, req_power_state);
 		break;
@@ -2143,8 +2143,8 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 		}
 
 #if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
-		if (!wake_lock_active(&vdd->doze_wakelock))
-			wake_lock(&vdd->doze_wakelock);
+		if (!vdd->doze_wakelock->active)
+			__pm_stay_awake(vdd->doze_wakelock);
 #endif
 		ret = mdss_fb_blank_blank(mfd, req_power_state);
 		break;
@@ -2154,8 +2154,8 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 		req_power_state = MDSS_PANEL_POWER_OFF;
 		pr_debug("blank powerdown called\n");
 #if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
-		if (wake_lock_active(&vdd->doze_wakelock))
-			wake_unlock(&vdd->doze_wakelock);
+		if (vdd->doze_wakelock->active)
+			__pm_relax(vdd->doze_wakelock);
 #endif
 		ret = mdss_fb_blank_blank(mfd, req_power_state);
 		break;
@@ -5339,7 +5339,7 @@ int __init mdss_fb_init(void)
 		return rc;
 
 #if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
-	wake_lock_init(&vdd->doze_wakelock, WAKE_LOCK_SUSPEND,"doze-wakelock");
+	vdd->doze_wakelock = wakeup_source_register(NULL, "doze-wakelock");
 #endif
 	return 0;
 }
