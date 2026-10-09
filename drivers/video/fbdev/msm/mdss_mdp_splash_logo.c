@@ -19,6 +19,10 @@
 #include "mdss_mdp_splash_logo.h"
 #include "mdss_smmu.h"
 
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG) && defined(CONFIG_SEC_DEBUG)
+#include <linux/sec_debug.h>
+#endif
+
 #define INVALID_PIPE_INDEX 0xFFFF
 #define MAX_FRAME_DONE_COUNT_WAIT 2
 
@@ -246,10 +250,19 @@ int mdss_mdp_splash_cleanup(struct msm_fb_data_type *mfd,
 		if (mfd->splash_info.iommu_dynamic_attached &&
 			use_borderfill) {
 			mdss_mdp_splash_unmap_splash_mem(mfd);
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG) && defined(CONFIG_SEC_DEBUG)
+			if (!sec_debug_is_enabled()) {
+				memblock_free(mdp5_data->splash_mem_addr,
+						mdp5_data->splash_mem_size);
+				mdss_free_bootmem(mdp5_data->splash_mem_addr,
+						mdp5_data->splash_mem_size);
+			}
+#else
 			memblock_free(mdp5_data->splash_mem_addr,
 					mdp5_data->splash_mem_size);
 			mdss_free_bootmem(mdp5_data->splash_mem_addr,
 					mdp5_data->splash_mem_size);
+#endif
 		}
 		goto end;
 	}
@@ -296,11 +309,21 @@ int mdss_mdp_splash_cleanup(struct msm_fb_data_type *mfd,
 
 	if (mdp5_data->splash_mem_addr &&
 		!mfd->splash_info.iommu_dynamic_attached) {
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG) && defined(CONFIG_SEC_DEBUG)
+		if (!sec_debug_is_enabled()) {
+			/* Give back the reserved memory to the system */
+			memblock_free(mdp5_data->splash_mem_addr,
+						mdp5_data->splash_mem_size);
+			mdss_free_bootmem(mdp5_data->splash_mem_addr,
+						mdp5_data->splash_mem_size);
+		}
+#else
 		/* Give back the reserved memory to the system */
 		memblock_free(mdp5_data->splash_mem_addr,
 					mdp5_data->splash_mem_size);
 		mdss_free_bootmem(mdp5_data->splash_mem_addr,
 					mdp5_data->splash_mem_size);
+#endif
 	}
 
 	mdss_mdp_footswitch_ctrl_splash(0);
@@ -679,10 +702,19 @@ error:
 	if (!rc && !mfd->panel_info->cont_splash_enabled &&
 		mdp5_mdata->splash_mem_addr) {
 		pr_debug("mem reservation not reqd if cont splash disabled\n");
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG) && defined(CONFIG_SEC_DEBUG)
+		if (!sec_debug_is_enabled()) {
+			memblock_free(mdp5_mdata->splash_mem_addr,
+						mdp5_mdata->splash_mem_size);
+			mdss_free_bootmem(mdp5_mdata->splash_mem_addr,
+						mdp5_mdata->splash_mem_size);
+		}
+#else
 		memblock_free(mdp5_mdata->splash_mem_addr,
 					mdp5_mdata->splash_mem_size);
 		mdss_free_bootmem(mdp5_mdata->splash_mem_addr,
 					mdp5_mdata->splash_mem_size);
+#endif
 	} else if (rc && mfd->panel_info->cont_splash_enabled) {
 		pr_err("no rsvd mem found in DT for splash screen\n");
 	} else {

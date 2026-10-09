@@ -17,6 +17,7 @@
 #include <linux/msm_dma_iommu_mapping.h>
 
 #include <linux/mdss_smmu_ext.h>
+#include <linux/delay.h>
 
 #include <asm/dma-iommu.h>
 #include "soc/qcom/secure_buffer.h"

@@ -1384,7 +1384,7 @@ static struct mdss_fence *__create_fence(struct msm_fb_data_type *mfd,
 		pr_err("fb%d ctl power on failed\n", mfd->index);
 		return ERR_PTR(-EPERM);
 	}
-
+#if 0
 	if (fence_type == MDSS_MDP_RETIRE_FENCE)
 		snprintf(fence_name, sizeof(fence_name), "fb%d_retire",
 			mfd->index);
@@ -1394,7 +1394,7 @@ static struct mdss_fence *__create_fence(struct msm_fb_data_type *mfd,
 	else if (fence_type == MDSS_MDP_CWB_RETIRE_FENCE)
 		snprintf(fence_name, sizeof(fence_name), "cwb%d_retire",
 			mfd->index);
-
+#endif
 
 	if ((fence_type == MDSS_MDP_RETIRE_FENCE) &&
 		(mfd->panel.type == MIPI_CMD_PANEL)) {
@@ -1410,6 +1410,7 @@ static struct mdss_fence *__create_fence(struct msm_fb_data_type *mfd,
 	} else if (fence_type == MDSS_MDP_CWB_RETIRE_FENCE) {
 		sync_fence = mdss_fb_sync_get_fence(sync_pt_data->timeline,
 				fence_name, sync_pt_data->timeline_value + 1);
+		 MDSS_XLOG(value,sync_pt_data->timeline->value,sync_pt_data->commit_cnt,0x22);
 	} else {
 		if (fence_type == MDSS_MDP_RETIRE_FENCE)
 			sync_fence = mdss_fb_sync_get_fence(

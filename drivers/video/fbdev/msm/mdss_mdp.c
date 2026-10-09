@@ -54,6 +54,10 @@
 
 #include "mdss_mdp_trace.h"
 
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+#include "samsung/ss_dsi_panel_common.h"
+#endif
+
 #define AXI_HALT_TIMEOUT_US	0x4000
 #define AUTOSUSPEND_TIMEOUT_MS	200
 #define DEFAULT_MDP_PIPE_WIDTH	2048
@@ -100,7 +104,11 @@ static struct mdss_panel_intf pan_types[] = {
 	{"hdmi", MDSS_PANEL_INTF_HDMI},
 	{"rgb", MDSS_PANEL_INTF_RGB},
 };
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+char mdss_mdp_panel[MDSS_MAX_PANEL_LEN];
+#else
 static char mdss_mdp_panel[MDSS_MAX_PANEL_LEN];
+#endif
 
 struct mdss_hw mdss_mdp_hw = {
 	.hw_ndx = MDSS_HW_MDP,
@@ -1237,6 +1245,8 @@ static int mdss_mdp_clk_update(u32 clk_idx, u32 enable)
 	struct clk *clk = mdss_mdp_get_clk(clk_idx);
 	struct mdss_data_type *mdata = mdss_res;
 
+	MDSS_XLOG(clk_idx, enable);
+
 	if (clk) {
 		pr_debug("clk=%d en=%d\n", clk_idx, enable);
 		if (enable) {
@@ -1257,6 +1267,7 @@ static int mdss_mdp_clk_update(u32 clk_idx, u32 enable)
 						mdata->max_mdp_clk_rate, true);
 				} else {
 					clk_set_rate(clk, mdata->mdp_clk_rate);
+					pr_debug("mdp clk rate=%lu\n", mdata->mdp_clk_rate);
 				}
 			}
 
@@ -1312,6 +1323,7 @@ void mdss_mdp_set_clk_rate(unsigned long rate, bool locked)
 		} else if (clk_rate != curr_clk_rate) {
 			mdss_mdp_cxipeak_vote(true, clk_rate, curr_clk_rate);
 			mdata->mdp_clk_rate = clk_rate;
+			MDSS_XLOG(clk_rate, curr_clk_rate);
 			if (IS_ERR_VALUE(
 				(unsigned long)clk_set_rate(clk, clk_rate))) {
 				pr_err("clk_set_rate failed\n");
@@ -2079,8 +2091,8 @@ static void mdss_mdp_hw_rev_caps_init(struct mdss_data_type *mdata)
 	mdata->hflip_buffer_reused = true;
 	/* prevent disable of prefill calculations */
 	mdata->min_prefill_lines = 0xffff;
-	/* clock gating feature is enabled by default */
-	mdata->enable_gate = true;
+	/* clock gating feature is disabled by default */
+	mdata->enable_gate = false;
 	mdata->pixel_ram_size = 0;
 	mem_protect_sd_ctrl_id = MEM_PROTECT_SD_CTRL_FLAT;
 #ifdef CONFIG_DEBUG_FS
@@ -3157,6 +3169,7 @@ static int mdss_mdp_probe(struct platform_device *pdev)
 		MDSS_MDP_REG_DISP_INTF_SEL);
 	split_display = readl_relaxed(mdata->mdp_base +
 		MDSS_MDP_REG_SPLIT_DISPLAY_EN);
+
 	if (intf_sel != 0) {
 		for (i = 0; i < 4; i++)
 			num_of_display_on += ((intf_sel >> i*8) & 0x000000FF);
@@ -3182,6 +3195,10 @@ static int mdss_mdp_probe(struct platform_device *pdev)
 			mdss_mdp_footswitch_ctrl_splash(true);
 	}
 
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+	if (!mdss_panel_attached(DISPLAY_1) && !mdss_panel_attached(DISPLAY_2))
+		mdata->handoff_pending = false;
+#endif
 	mdp_intr_cb  = kcalloc(ARRAY_SIZE(mdp_irq_map),
 			sizeof(struct intr_callback), GFP_KERNEL);
 	if (mdp_intr_cb == NULL)
