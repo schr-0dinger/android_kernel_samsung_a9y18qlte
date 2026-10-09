@@ -32,7 +32,7 @@
 #include <linux/uaccess.h>
 #include <linux/regulator/consumer.h>
 #include <linux/completion.h>
-#include <linux/wakelock.h>
+#include <linux/pm_wakeup.h>
 
 #include <linux/i2c/zinitix_bt532_ts.h>
 #include <linux/input/mt.h>
@@ -689,7 +689,7 @@ struct bt532_ts_info {
 	u8 tsp_dump_lock;
 
 	struct completion resume_done;
-	struct wake_lock wakelock;
+	struct wakeup_source *wakelock;
 
 #ifdef CONFIG_SECURE_TOUCH
 	atomic_t secure_enabled;
@@ -1302,7 +1302,7 @@ static void clear_report_data(struct bt532_ts_info *info);
 static void esd_timer_start(u16 sec, struct bt532_ts_info *info);
 static void esd_timer_stop(struct bt532_ts_info *info);
 static void esd_timer_init(struct bt532_ts_info *info);
-static void esd_timeout_handler(unsigned long data);
+static void esd_timeout_handler(struct timer_list *t);
 #endif
 
 #ifdef TCLM_CONCEPT
@@ -1639,9 +1639,9 @@ out:
 }
 
 #if ESD_TIMER_INTERVAL
-static void esd_timeout_handler(unsigned long data)
+static void esd_timeout_handler(struct timer_list *t)
 {
-	struct bt532_ts_info *info = (struct bt532_ts_info *)data;
+	struct bt532_ts_info *info = from_timer(info, t, esd_timeout_tmr);
 
 #ifdef CONFIG_SECURE_TOUCH
 	if (atomic_read(&info->secure_enabled) == SECURE_TOUCH_ENABLED) {
@@ -1681,9 +1681,7 @@ static void esd_timer_start(u16 sec, struct bt532_ts_info *info)
 		del_timer(info->p_esd_timeout_tmr);
 #endif
 	info->p_esd_timeout_tmr = NULL;
-	init_timer(&(info->esd_timeout_tmr));
-	info->esd_timeout_tmr.data = (unsigned long)(info);
-	info->esd_timeout_tmr.function = esd_timeout_handler;
+	timer_setup(&info->esd_timeout_tmr, esd_timeout_handler, 0);
 	info->esd_timeout_tmr.expires = jiffies + (HZ * sec);
 	info->p_esd_timeout_tmr = &info->esd_timeout_tmr;
 	add_timer(&info->esd_timeout_tmr);
@@ -1709,9 +1707,7 @@ static void esd_timer_init(struct bt532_ts_info *info)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&info->lock, flags);
-	init_timer(&(info->esd_timeout_tmr));
-	info->esd_timeout_tmr.data = (unsigned long)(info);
-	info->esd_timeout_tmr.function = esd_timeout_handler;
+	timer_setup(&info->esd_timeout_tmr, esd_timeout_handler, 0);
 	info->p_esd_timeout_tmr = NULL;
 	spin_unlock_irqrestore(&info->lock, flags);
 }
@@ -2730,7 +2726,9 @@ static void clear_report_data(struct bt532_ts_info *info)
 	}
 
 #ifdef GLOVE_MODE
+#ifdef SW_GLOVE
 	input_report_switch(info->input_dev, SW_GLOVE, false);
+#endif
 	info->glove_touch = 0;
 #endif
 
@@ -2822,7 +2820,7 @@ static irqreturn_t bt532_touch_work(int irq, void *data)
 		int ret;
 
 		/* run lpm interrupt handler */
-		wake_lock_timeout(&info->wakelock, msecs_to_jiffies(500));
+		__pm_wakeup_event(info->wakelock, 500);
 
 		/* waiting for blsp block resuming, if not occurs i2c error */
 		ret = wait_for_completion_interruptible_timeout(&info->resume_done, msecs_to_jiffies(500));
@@ -2994,7 +2992,9 @@ static irqreturn_t bt532_touch_work(int irq, void *data)
 #ifdef GLOVE_MODE
 	if (info->glove_touch != zinitix_bit_test(ic_status, BIT_GLOVE_TOUCH)) {
 		info->glove_touch = zinitix_bit_test(ic_status, BIT_GLOVE_TOUCH);
+#ifdef SW_GLOVE
 		input_report_switch(info->input_dev, SW_GLOVE, info->glove_touch);
+#endif
 	}
 #endif
 
@@ -9293,7 +9293,9 @@ static int bt532_ts_probe(struct i2c_client *client,
 	info->input_dev->dev.parent = &client->dev;
 
 #ifdef GLOVE_MODE
+#ifdef SW_GLOVE
 	input_set_capability(info->input_dev, EV_SW, SW_GLOVE);
+#endif
 #endif
 
 	set_bit(EV_SYN, info->input_dev->evbit);
@@ -9351,7 +9353,7 @@ static int bt532_ts_probe(struct i2c_client *client,
 
 	info->work_state = NOTHING;
 
-	wake_lock_init(&info->wakelock, WAKE_LOCK_SUSPEND, "tsp_wakelock");
+	info->wakelock = wakeup_source_register(&client->dev, "tsp_wakelock");
 	init_completion(&info->resume_done);
 	complete_all(&info->resume_done);
 
@@ -9454,7 +9456,7 @@ err_misc_register:
 	free_irq(info->irq, info);
 err_request_irq:
 error_gpio_irq:
-	wake_lock_destroy(&info->wakelock);
+	wakeup_source_unregister(info->wakelock);
 err_init_touch:
 	input_unregister_device(info->input_dev);
 err_input_register_device:
@@ -9519,7 +9521,7 @@ static int bt532_ts_remove(struct i2c_client *client)
 
 	if (info->irq)
 		free_irq(info->irq, info);
-	wake_lock_destroy(&info->wakelock);
+	wakeup_source_unregister(info->wakelock);
 #ifdef USE_MISC_DEVICE
 	misc_deregister(&touch_misc_device);
 #endif
