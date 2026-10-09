@@ -298,13 +298,13 @@ static int s2dos03_regulator_probe(struct i2c_client *client,
 
 		rc= s2dos03_reg_set_active_discharge(s2dos03_reg, pdata,
 						s2dos03_reg_desc[i].id);
-		if (IS_ERR_VALUE(rc))
+		if (rc < 0)
 			goto abort;
 	}
 
 	/* initialize platform data */
 	rc= s2dos03_reg_hw_init(s2dos03_reg, pdata);
-	if (IS_ERR_VALUE(rc))
+	if (rc < 0)
 		goto abort;
 
 
