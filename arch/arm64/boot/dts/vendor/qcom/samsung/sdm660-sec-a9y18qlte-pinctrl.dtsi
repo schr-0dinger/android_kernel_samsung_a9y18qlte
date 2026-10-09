@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * a9y18qlte pin settings, from sdm660-sec-a9y18qlte-eur-pinctrl-r06.dtsi
+ * on 4.4. Groups are added here as their drivers are ported.
+ */
+
+&tlmm {
+	i2c_22_pinctrl: i2c_22_pinctrl {
+		mux {
+			pins = "gpio66",	/* OCTA_PMIC_SDA_1P8 */
+			       "gpio70";	/* OCTA_PMIC_SCL_1P8 */
+			function = "gpio";
+		};
+		config {
+			pins = "gpio66", "gpio70";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+};

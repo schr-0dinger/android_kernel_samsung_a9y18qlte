@@ -56,3 +56,64 @@
 		bias-disable;
 	};
 };
+
+&soc {
+	/* S2DOS03 display PMIC on a GPIO I2C bus */
+	i2c_22: i2c@22 {
+		compatible = "i2c-gpio";
+		gpios = <&tlmm 66 0	/* SDA */
+			 &tlmm 70 0>;	/* SCL */
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c_22_pinctrl>;
+
+		s2dos03@60 {
+			compatible = "slsi,s2dos03";
+			reg = <0x60>;
+			buck-ramp-up = <0>;		/* 6.25mV/us */
+			buck-fpwm = <0>;		/* disabled */
+			uvlo-fall-threshold = <0>;	/* 2.30V */
+
+			regulators {
+				s2dos03_l1: s2dos03-ldo1 {
+					regulator-name = "s2dos03-ldo1";
+					regulator-min-microvolt = <600000>;
+					regulator-max-microvolt = <3775000>;
+					active-discharge-enable = <1>;
+				};
+
+				s2dos03_l2: s2dos03-ldo2 {
+					regulator-name = "s2dos03-ldo2";
+					regulator-min-microvolt = <600000>;
+					regulator-max-microvolt = <3775000>;
+					active-discharge-enable = <1>;
+				};
+
+				s2dos03_l3: s2dos03-ldo3 {
+					regulator-name = "s2dos03-ldo3";
+					regulator-min-microvolt = <600000>;
+					regulator-max-microvolt = <3775000>;
+					regulator-boot-on;
+					active-discharge-enable = <1>;
+				};
+
+				s2dos03_l4: s2dos03-ldo4 {
+					regulator-name = "s2dos03-ldo4";
+					regulator-min-microvolt = <600000>;
+					regulator-max-microvolt = <3775000>;
+					active-discharge-enable = <1>;
+				};
+
+				s2dos03_buck: s2dos03-buck {
+					regulator-name = "s2dos03-buck";
+					regulator-min-microvolt = <500000>;
+					regulator-max-microvolt = <2093750>;
+					regulator-boot-on;
+					active-discharge-enable = <1>;
+				};
+			};
+		};
+	};
+};
