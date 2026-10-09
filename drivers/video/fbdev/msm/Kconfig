@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
+source "drivers/video/fbdev/msm/samsung/Kconfig"
 source "drivers/video/fbdev/msm/msm_dba/Kconfig"
 
 if FB_MSM
