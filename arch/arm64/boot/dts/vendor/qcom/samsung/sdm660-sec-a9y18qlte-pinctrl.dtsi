@@ -18,3 +18,42 @@
 		};
 	};
 };
+
+&tlmm {
+	tsp_int_active: tsp_int_active {
+		mux {
+			pins = "gpio67";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio67";
+			drive-strength = <2>;
+			bias-disable;
+			input-enable;
+		};
+	};
+
+	tsp_int_suspend: tsp_int_suspend {
+		mux {
+			pins = "gpio67";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio67";
+			drive-strength = <2>;
+			bias-disable;
+			input-enable;
+		};
+	};
+};
+
+&pm660l_gpios {
+	/* GPIO 8, Bixby key */
+	key_wink_default: key_wink_default {
+		pins = "gpio8";
+		function = "normal";
+		input-enable;
+		bias-pull-up;
+		power-source = <0>;
+	};
+};
