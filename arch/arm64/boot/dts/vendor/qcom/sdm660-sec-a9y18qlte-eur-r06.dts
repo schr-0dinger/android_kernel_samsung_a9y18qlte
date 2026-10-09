@@ -12,6 +12,7 @@
 #include "samsung/sdm660-sec-a9y18qlte-memory.dtsi"
 #include "samsung/sdm660-sec-a9y18qlte-pinctrl.dtsi"
 #include "samsung/sdm660-sec-a9y18qlte-common.dtsi"
+#include "samsung/sdm660-sec-a9y18qlte-display.dtsi"
 
 / {
 	model = "Samsung A9Y18QLTE EUR PROJECT Rev06 (board-id,06)";
