@@ -176,3 +176,21 @@
 		};
 	};
 };
+
+/* Charging and the fuel gauge are done by the SM5705, not the PM660 */
+&pm660_pdphy {
+	status = "disabled";
+};
+
+&pm660_charger {
+	status = "disabled";
+};
+
+&pm660_fg {
+	status = "disabled";
+};
+
+/* The PM660 BCL reads the PM660 fuel gauge, which is off */
+&bcl_sensor {
+	status = "disabled";
+};
