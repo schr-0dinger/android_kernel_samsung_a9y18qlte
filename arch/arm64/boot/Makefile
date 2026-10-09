@@ -23,10 +23,12 @@ targets := Image Image.bz2 Image.gz Image.lz4 Image.lzma Image.lzo
 DTB_NAMES := $(subst $\",,$(CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_NAMES))
 ifneq ($(DTB_NAMES),)
 DTB_LIST := $(addsuffix .dtb,$(DTB_NAMES))
+# Append only the named DTBs, not every DTB that was built
+DTB_OBJS := $(addprefix $(obj)/dts/,$(DTB_LIST))
 else
 DTB_LIST := $(dtb-y)
-endif
 DTB_OBJS := $(shell find $(obj)/dts/ -name \*.dtb)
+endif
 
 # Add RTIC DTB to the DTB list if RTIC MPGen is enabled
 # Note, we keep this for compatibility with
