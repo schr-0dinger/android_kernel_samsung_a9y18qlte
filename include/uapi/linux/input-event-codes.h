@@ -338,6 +338,9 @@
 
 #define KEY_MICMUTE		248	/* Mute / unmute the microphone */
 
+/* Samsung */
+#define KEY_RECENT		254
+
 /* Code 255 is reserved for special needs of AT keyboard driver */
 
 #define BTN_MISC		0x100
@@ -519,6 +522,11 @@
 #define KEY_DEL_EOS		0x1c1
 #define KEY_INS_LINE		0x1c2
 #define KEY_DEL_LINE		0x1c3
+/* Samsung gesture keys */
+#define KEY_SIDE_GESTURE	0x1c6
+#define KEY_BLACK_UI_GESTURE	0x1c7
+#define KEY_SIDE_GESTURE_RIGHT	0x1ca
+#define KEY_SIDE_GESTURE_LEFT	0x1cb
 
 #define KEY_FN			0x1d0
 #define KEY_FN_ESC		0x1d1
@@ -769,6 +777,10 @@
 #define ABS_MT_DISTANCE		0x3b	/* Contact hover distance */
 #define ABS_MT_TOOL_X		0x3c	/* Center X tool position */
 #define ABS_MT_TOOL_Y		0x3d	/* Center Y tool position */
+/* Samsung */
+#define ABS_MT_CUSTOM		0x3e	/* custom event */
+#define ABS_MT_PALM		0x3e	/* palm touch */
+#define ABS_MT_GRIP		0x3f	/* grip touch */
 
 
 #define ABS_MAX			0x3f
@@ -796,6 +808,9 @@
 #define SW_LINEIN_INSERT	0x0d  /* set = inserted */
 #define SW_MUTE_DEVICE		0x0e  /* set = device disabled */
 #define SW_PEN_INSERTED		0x0f  /* set = pen inserted */
+/* Samsung */
+#define SW_FLIP			0x15	/* set = flip cover */
+#define SW_CERTIFYHALL		0x1b	/* set = certify_hall */
 #define SW_MACHINE_COVER	0x10  /* set = cover closed */
 #define SW_HPHL_OVERCURRENT	0x11  /* set = over current on left hph */
 #define SW_HPHR_OVERCURRENT	0x12  /* set = over current on right hph */
