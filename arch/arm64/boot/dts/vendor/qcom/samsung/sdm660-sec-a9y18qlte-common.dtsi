@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Parts shared by every a9y18qlte board revision.
+ */
+
+&int_codec {
+	qcom,model = "sdm660-snd-card-mtp";
+	status = "okay";
+};
