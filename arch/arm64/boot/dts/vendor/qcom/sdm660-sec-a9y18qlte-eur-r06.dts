@@ -9,6 +9,7 @@
 #include "sdm660-mtp.dtsi"
 #include "msm-pm660a.dtsi"
 #include "sdm660-internal-codec.dtsi"
+#include "samsung/sdm660-sec-a9y18qlte-memory.dtsi"
 #include "samsung/sdm660-sec-a9y18qlte-common.dtsi"
 
 / {
