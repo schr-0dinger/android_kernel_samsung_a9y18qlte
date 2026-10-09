@@ -206,3 +206,20 @@
 		/delete-node/ fstab;
 	};
 };
+
+/*
+ * MTP board parts that the A9 (2018) does not have. Same as the
+ * Samsung changes on 4.4: no NQ NFC on i2c_6, no SMB1351 on i2c_2.
+ * The MTP camera sensors stay off until the Samsung camera DT is ported.
+ */
+&i2c_6 {
+	status = "disabled";
+};
+
+&i2c_2 {
+	/delete-node/ smb1351-charger@1d;
+};
+
+&cci {
+	status = "disabled";
+};
